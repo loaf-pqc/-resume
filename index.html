@@ -180,10 +180,9 @@
     <video id="heroVideo"
       class="absolute inset-0 h-full w-full anim-fade-in"
       style="filter: saturate(0.9) hue-rotate(-2deg) contrast(1.02);"
-      autoplay muted loop playsinline preload="auto">
-      <source src="hero_loop.mp4"    type="video/mp4" media="(min-width: 768px)" />
-      <source src="hero_loop_m.mp4" type="video/mp4" media="(max-width: 767px)" />
-    </video>
+      autoplay muted loop playsinline webkit-playsinline x5-playsinline
+      x5-video-player-type="h5" x5-video-player-fullscreen="false"
+      preload="auto"></video>
   </div>
 
   <!-- 舞台层：精确贴合视频实际显示区域；着陆页所有「画面信息」都在这块矩形内 -->
@@ -441,6 +440,11 @@
       var stage = document.getElementById('stage');
       var loading = document.getElementById('stageLoading');
 
+      // 按屏宽手动选源：避开部分 WebView（含微信 iOS）对 <source media> 支持不佳的问题
+      var isMobileSrc = window.matchMedia('(max-width: 767px)').matches;
+      video.src = isMobileSrc ? 'hero_loop_m.mp4' : 'hero_loop.mp4';
+      video.load();
+
       function layout() {
         var vw = video.videoWidth, vh = video.videoHeight;
         if (!vw || !vh) return;
@@ -479,9 +483,25 @@
       var pr = video.play();
       if (pr && pr.catch) pr.catch(function () {});
 
-      function hideLoad() { if (loading) loading.classList.add('hidden'); }
+      var loadHidden = false;
+      function hideLoad() {
+        if (loadHidden || !loading) return;
+        loadHidden = true;
+        loading.classList.add('hidden');
+      }
+      // 微信 WebView 有时不自动触发 playing，用多重事件 + 超时兜底确保不一直转圈
       video.addEventListener('playing', hideLoad);
-      video.addEventListener('canplay', function () { /* 等真正播放再隐藏 */ });
+      video.addEventListener('canplay', hideLoad);
+      video.addEventListener('loadeddata', hideLoad);
+      video.addEventListener('canplaythrough', hideLoad);
+      // 3 秒兜底：无论如何都隐藏加载层，若确实没播至少能看到视频首帧或触发用户点击
+      setTimeout(hideLoad, 3000);
+      // 用户轻触页面时也尝试播放一次
+      function tryPlay() {
+        if (video.paused) { video.muted = true; var p = video.play(); if (p && p.catch) p.catch(function () {}); }
+      }
+      document.addEventListener('touchstart', tryPlay, { passive: true });
+      window.addEventListener('scroll', tryPlay, { passive: true });
       video.addEventListener('error', function () {
         if (loading) loading.innerHTML = '<div style="letter-spacing:.2em">视频加载失败，请刷新</div>';
       });
