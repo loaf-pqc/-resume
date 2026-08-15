@@ -59,37 +59,6 @@
       #stageLoading { display: none; }
     }
 
-    /* ---- 手机「强制横屏」门：竖屏时用全屏遮罩盖住所有内容，提示旋转；横屏自动消失 ---- */
-    /* 仅对 ≤767px 的手机竖屏生效；桌面与横屏手机不显示（纯 CSS，无需 JS） */
-    #rotateGate { display: none; }
-    @media (max-width: 767px) and (orientation: portrait) {
-      #rotateGate {
-        position: fixed; inset: 0; z-index: 100;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 22px; padding: 2rem; text-align: center;
-        background: #0a0a0a; color: #efeee9;
-      }
-    }
-    #rotateGate .phone {
-      width: 56px; height: 96px; border: 3px solid #efeee9; border-radius: 12px;
-      position: relative; animation: rotatePhone 1.8s cubic-bezier(0.5,0,0.5,1) infinite;
-    }
-    #rotateGate .phone::before {
-      content: ""; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-      width: 18px; height: 3px; border-radius: 2px; background: #efeee9;
-    }
-    #rotateGate .phone::after {
-      content: ""; position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-      width: 40px; height: 56px; border-radius: 4px;
-      border: 2px solid rgba(239,238,233,0.45);
-    }
-    @keyframes rotatePhone { 0%,40% { transform: rotate(0deg); } 60%,100% { transform: rotate(-90deg); } }
-    #rotateGate .rg-title { font-size: 16px; font-weight: 600; letter-spacing: .08em; }
-    #rotateGate .rg-sub { font-size: 12px; letter-spacing: .25em; color: rgba(239,238,233,0.55); }
-    @media (prefers-reduced-motion: reduce) {
-      #rotateGate .phone { animation: none; transform: rotate(-90deg); }
-    }
-
     /* ---- 舞台层：JS 精确贴合视频「实际显示区域」，所有着陆页内容都在这块矩形内，
            黑边（视频之外的留白）保持空白，不承载任何信息 ---- */
     #stage { position: fixed; inset: 0; z-index: 1; overflow: hidden; }
@@ -205,13 +174,6 @@
   </style>
 </head>
 <body>
-
-  <!-- 手机强制横屏门：竖屏时盖住全部内容，提示旋转手机；横屏后此遮罩自动隐藏 -->
-  <div id="rotateGate" aria-hidden="true">
-    <div class="phone"></div>
-    <div class="rg-title">请将手机横屏观看</div>
-    <div class="rg-sub">ROTATE YOUR PHONE</div>
-  </div>
 
   <!-- 背景层：循环播放的 hero 视频（object-contain：完整显示、左右不裁切，黑边留空） -->
   <div id="bg">
