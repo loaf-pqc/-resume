@@ -159,6 +159,16 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* 手机版：底部信息锚定到「视频底边以下」而不是浏览器底；桌面仍按 md: 值定位 */
+    :root { --sheet-top: 100dvh; }
+    @media (max-width: 767px) {
+      /* 保持上一次相对间距，整组上移 43px，让视频底边从组中间穿过：上半个压视频、下半个落黑边 */
+      .mv-name { top: calc(var(--sheet-top) - 41px) !important; bottom: auto !important; }
+      .mv-div  { top: calc(var(--sheet-top) - 1px)  !important; bottom: auto !important; }
+      .mv-foot { top: calc(var(--sheet-top) + 3px)  !important; bottom: auto !important; }
+      .mv-hint { top: calc(var(--sheet-top) + 32px) !important; bottom: auto !important; }
+    }
+
     /* ---- Reduced motion 短路 ---- */
     @media (prefers-reduced-motion: reduce) {
       .anim-fade-in, .anim-rise-in, .anim-fade-up, .anim-line { animation-duration: 0.01ms !important; animation-delay: 0ms !important; opacity: 1 !important; transform: none !important; }
@@ -188,8 +198,8 @@
   <!-- 舞台层：精确贴合视频实际显示区域；着陆页所有「画面信息」都在这块矩形内 -->
   <div id="stage">
     <!-- 顶部联系方式（落在视频上方，不在黑边上） -->
-    <header class="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-6 pt-5 font-hn text-[11px] text-cream/90 md:px-10 md:pt-8 md:text-sm">
-      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pr-10 sm:gap-x-10 sm:pr-0">
+    <header class="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-6 pt-2 font-hn text-[11px] text-cream/90 md:px-10 md:pt-8 md:text-sm">
+      <div class="flex flex-nowrap items-center justify-center gap-x-3 pl-3 sm:gap-x-10 sm:pl-0">
         <a href="tel:17765155467" class="anim-fade-up hover:opacity-60 transition-opacity" style="animation-delay:800ms">微信 / 电话　17765155467</a>
         <span class="anim-fade-up text-cream/30" style="animation-delay:880ms">·</span>
         <a href="mailto:3641735786@qq.com" class="anim-fade-up hover:opacity-60 transition-opacity" style="animation-delay:950ms">邮箱　3641735786@qq.com</a>
@@ -199,21 +209,21 @@
     <!-- ============ 着陆页（贴合视频显示区） ============ -->
     <section id="hero" class="section overflow-hidden px-6 sm:px-10">
       <!-- cream 分隔线（人物站立处开缺口，避免横线穿过人物） -->
-      <div class="absolute inset-x-6 md:inset-x-10 bottom-[4.5rem] md:bottom-28 z-10 h-0.5 bg-cream anim-line"
+      <div class="fixed inset-x-6 md:inset-x-10 md:bottom-28 z-10 h-0.5 bg-cream anim-line mv-div"
         style="-webkit-mask-image: linear-gradient(to right, #000 0 30%, transparent 35% 65%, #000 70% 100%); mask-image: linear-gradient(to right, #000 0 30%, transparent 35% 65%, #000 70% 100%);"></div>
 
       <!-- 左下角大号姓名 -->
       <img
-        class="pointer-events-none absolute left-1 bottom-[5rem] z-10 h-20 w-auto object-contain anim-fade-up md:left-3 md:bottom-28 md:h-44"
+        class="pointer-events-none fixed left-0 z-10 h-12 w-auto object-contain anim-fade-up md:left-3 md:bottom-28 md:h-44 mv-name"
         alt="潘钱呈"
         src="signature_pqc.webp"
         style="animation-delay:1300ms; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.35));" />
 
       <!-- 底部渐变遮罩：压住视频里的滚动英文字幕，让 footer 文字更清晰 -->
-      <div class="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-20 bg-gradient-to-t from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent md:h-32"></div>
+      <div class="pointer-events-none fixed inset-x-0 bottom-0 z-[5] h-16 bg-gradient-to-t from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent md:h-32"></div>
 
-      <!-- footer（落在视频内，不在黑边上；手机端不再需要为微信工具栏大幅让位，因为已整体在视频条内） -->
-      <footer class="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between px-6 pb-6 md:px-10 md:pb-8 text-[11px] md:text-sm leading-relaxed font-hn">
+      <!-- footer（落在视频内，不在黑边上；手机端贴底、纵向间距大幅压缩） -->
+      <footer class="fixed inset-x-0 md:bottom-0 z-10 flex items-end justify-between px-6 pb-2 md:px-10 md:pb-8 text-[11px] md:text-sm leading-relaxed font-hn mv-foot">
         <div class="anim-fade-up" style="animation-delay:1400ms">
           <div>AI 技能探索者，优质内容创作者</div>
         </div>
@@ -223,7 +233,7 @@
       </footer>
 
       <!-- 向下滚动提示（始终可见，提示这是可滚动的动态页面） -->
-      <div class="scroll-hint absolute bottom-2 left-1/2 z-20 -translate-x-1/2 text-cream/70 text-[11px] tracking-[0.3em] md:hidden">SCROLL &nbsp;&#8595;</div>
+      <div class="mv-hint fixed left-1/2 z-20 -translate-x-1/2 md:hidden"><div class="scroll-hint text-cream/70 text-[11px] tracking-[0.3em]">SCROLL &nbsp;&#8595;</div></div>
     </section>
 
     <!-- 视频加载态（加载完成后隐藏） -->
