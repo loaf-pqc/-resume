@@ -47,15 +47,62 @@
     /* ---- 滚动容器 ---- */
     #scroller { position: relative; z-index: 10; height: 100dvh; overflow-y: auto; scroll-behavior: smooth; }
 
-    /* ---- 着陆页：固定为底层（保留，不改动外观） ---- */
+    /* ---- 背景层：循环播放的 hero 视频（object-contain 完整铺满、不裁切，黑边留空） ---- */
+    #bg { position: fixed; inset: 0; z-index: 0; background: #0a0a0a; }
+    #bg video { background: #0a0a0a; object-fit: cover; }
+    /* 手机版（窄屏）：视频比视口宽，cover 会裁左右 → 改 contain 完整显示，由 #stage 贴合视频实际区域 */
+    @media (max-width: 767px) {
+      #bg video { object-fit: contain; }
+    }
+    /* 电脑版保持原样（cover 铺满、内容浮于视频），不显示加载层 */
+    @media (min-width: 768px) {
+      #stageLoading { display: none; }
+    }
+
+    /* ---- 手机「强制横屏」门：竖屏时用全屏遮罩盖住所有内容，提示旋转；横屏自动消失 ---- */
+    /* 仅对 ≤767px 的手机竖屏生效；桌面与横屏手机不显示（纯 CSS，无需 JS） */
+    #rotateGate { display: none; }
+    @media (max-width: 767px) and (orientation: portrait) {
+      #rotateGate {
+        position: fixed; inset: 0; z-index: 100;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 22px; padding: 2rem; text-align: center;
+        background: #0a0a0a; color: #efeee9;
+      }
+    }
+    #rotateGate .phone {
+      width: 56px; height: 96px; border: 3px solid #efeee9; border-radius: 12px;
+      position: relative; animation: rotatePhone 1.8s cubic-bezier(0.5,0,0.5,1) infinite;
+    }
+    #rotateGate .phone::before {
+      content: ""; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      width: 18px; height: 3px; border-radius: 2px; background: #efeee9;
+    }
+    #rotateGate .phone::after {
+      content: ""; position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+      width: 40px; height: 56px; border-radius: 4px;
+      border: 2px solid rgba(239,238,233,0.45);
+    }
+    @keyframes rotatePhone { 0%,40% { transform: rotate(0deg); } 60%,100% { transform: rotate(-90deg); } }
+    #rotateGate .rg-title { font-size: 16px; font-weight: 600; letter-spacing: .08em; }
+    #rotateGate .rg-sub { font-size: 12px; letter-spacing: .25em; color: rgba(239,238,233,0.55); }
+    @media (prefers-reduced-motion: reduce) {
+      #rotateGate .phone { animation: none; transform: rotate(-90deg); }
+    }
+
+    /* ---- 舞台层：JS 精确贴合视频「实际显示区域」，所有着陆页内容都在这块矩形内，
+           黑边（视频之外的留白）保持空白，不承载任何信息 ---- */
+    #stage { position: fixed; inset: 0; z-index: 1; overflow: hidden; }
+
+    /* ---- 着陆页：固定为底层（在舞台内，贴合视频显示区） ---- */
     .section { position: relative; }
-    #hero { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+    #hero { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
 
     /* ---- 简历整体页：单页 + 毛玻璃模糊透明质感 + 顶部宽弧 ∩ 边缘 ---- */
     .resume-sheet {
       position: relative;
       z-index: 10;
-      margin-top: 100dvh;            /* 起始于着陆页之下，向上滚覆盖 */
+      margin-top: var(--sheet-top, 100dvh);   /* 起始于视频底边，向上滚覆盖 */
       min-height: 100dvh;
       background: rgba(18, 18, 20, 0.40);                 /* 比之前 0.82 亮很多 */
       -webkit-backdrop-filter: blur(24px) saturate(118%);
@@ -67,7 +114,7 @@
     /* 仅把 01 内容下推以避开顶部弧口；border-box 下整屏高度不变，02 位置不动 */
     .module#edu { padding-top: 13vh; }
 
-    /* ---- 标签掉落堆积交互层 ---- */
+    /* ---- 标签掉落堆积交互层（恢复为顶层，掉落标签是唯一的「例外」） ---- */
     #tagfx { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
     .falling-tag {
       position: absolute; top: 0; left: 0;
@@ -126,8 +173,22 @@
     #hamburger.active .bar-bot { transform: translateY(-8px) rotate(-45deg); }
 
     /* ---- 滚动提示 ---- */
-    @keyframes hintBob { 0%,100% { transform: translateY(0); opacity: .5; } 50% { transform: translateY(8px); opacity: 1; } }
+    @keyframes hintBob { 0%,100% { transform: translateY(0); opacity: .55; } 50% { transform: translateY(8px); opacity: 1; } }
     .scroll-hint { animation: hintBob 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+    #stageLoading {
+      position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: rgba(10, 10, 10, 0.55); backdrop-filter: blur(2px);
+      color: #efeee9/70; font-size: 13px; letter-spacing: .25em;
+    }
+    #stageLoading.hidden { display: none; }
+    #stageLoading .ring {
+      width: 34px; height: 34px; border-radius: 999px;
+      border: 3px solid rgba(239,238,233,0.2); border-top-color: #efeee9;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ---- Reduced motion 短路 ---- */
     @media (prefers-reduced-motion: reduce) {
@@ -139,20 +200,76 @@
       #drawerBackdrop, #drawerPanel { transition: none !important; }
       .drawer-label, .drawer-nav-link, .drawer-social-link { transition: none !important; opacity: 1 !important; transform: none !important; }
       #hamburger.active span { transition: none !important; }
-      .scroll-hint { animation: none !important; }
+      .scroll-hint, #stageLoading .ring { animation: none !important; }
     }
   </style>
 </head>
 <body>
 
-  <!-- 背景层：循环播放的 hero 视频（已去绿头、H.264、静音） -->
-  <div id="bg" class="fixed inset-0 z-0">
-    <video
-      class="absolute inset-0 h-full w-full object-cover anim-fade-in"
+  <!-- 手机强制横屏门：竖屏时盖住全部内容，提示旋转手机；横屏后此遮罩自动隐藏 -->
+  <div id="rotateGate" aria-hidden="true">
+    <div class="phone"></div>
+    <div class="rg-title">请将手机横屏观看</div>
+    <div class="rg-sub">ROTATE YOUR PHONE</div>
+  </div>
+
+  <!-- 背景层：循环播放的 hero 视频（object-contain：完整显示、左右不裁切，黑边留空） -->
+  <div id="bg">
+    <video id="heroVideo"
+      class="absolute inset-0 h-full w-full anim-fade-in"
       style="filter: saturate(0.9) hue-rotate(-2deg) contrast(1.02);"
-      autoplay muted loop playsinline preload="auto"
-      poster="hero_poster.webp"
-      src="hero_loop.mp4"></video>
+      autoplay muted loop playsinline preload="auto">
+      <source src="hero_loop.mp4"    type="video/mp4" media="(min-width: 768px)" />
+      <source src="hero_loop_m.mp4" type="video/mp4" media="(max-width: 767px)" />
+    </video>
+  </div>
+
+  <!-- 舞台层：精确贴合视频实际显示区域；着陆页所有「画面信息」都在这块矩形内 -->
+  <div id="stage">
+    <!-- 顶部联系方式（落在视频上方，不在黑边上） -->
+    <header class="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-6 pt-5 font-hn text-[11px] text-cream/90 md:px-10 md:pt-8 md:text-sm">
+      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pr-10 sm:gap-x-10 sm:pr-0">
+        <a href="tel:17765155467" class="anim-fade-up hover:opacity-60 transition-opacity" style="animation-delay:800ms">微信 / 电话　17765155467</a>
+        <span class="anim-fade-up text-cream/30" style="animation-delay:880ms">·</span>
+        <a href="mailto:3641735786@qq.com" class="anim-fade-up hover:opacity-60 transition-opacity" style="animation-delay:950ms">邮箱　3641735786@qq.com</a>
+      </div>
+    </header>
+
+    <!-- ============ 着陆页（贴合视频显示区） ============ -->
+    <section id="hero" class="section overflow-hidden px-6 sm:px-10">
+      <!-- cream 分隔线（人物站立处开缺口，避免横线穿过人物） -->
+      <div class="absolute inset-x-6 md:inset-x-10 bottom-[4.5rem] md:bottom-28 z-10 h-0.5 bg-cream anim-line"
+        style="-webkit-mask-image: linear-gradient(to right, #000 0 30%, transparent 35% 65%, #000 70% 100%); mask-image: linear-gradient(to right, #000 0 30%, transparent 35% 65%, #000 70% 100%);"></div>
+
+      <!-- 左下角大号姓名 -->
+      <img
+        class="pointer-events-none absolute left-1 bottom-[5rem] z-10 h-20 w-auto object-contain anim-fade-up md:left-3 md:bottom-28 md:h-44"
+        alt="潘钱呈"
+        src="signature_pqc.webp"
+        style="animation-delay:1300ms; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.35));" />
+
+      <!-- 底部渐变遮罩：压住视频里的滚动英文字幕，让 footer 文字更清晰 -->
+      <div class="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-20 bg-gradient-to-t from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent md:h-32"></div>
+
+      <!-- footer（落在视频内，不在黑边上；手机端不再需要为微信工具栏大幅让位，因为已整体在视频条内） -->
+      <footer class="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between px-6 pb-6 md:px-10 md:pb-8 text-[11px] md:text-sm leading-relaxed font-hn">
+        <div class="anim-fade-up" style="animation-delay:1400ms">
+          <div>AI 技能探索者，优质内容创作者</div>
+        </div>
+        <div class="text-right anim-fade-up" style="animation-delay:1550ms">
+          <div>上海电力大学 - 26 届信息安全</div>
+        </div>
+      </footer>
+
+      <!-- 向下滚动提示（始终可见，提示这是可滚动的动态页面） -->
+      <div class="scroll-hint absolute bottom-2 left-1/2 z-20 -translate-x-1/2 text-cream/70 text-[11px] tracking-[0.3em] md:hidden">SCROLL &nbsp;&#8595;</div>
+    </section>
+
+    <!-- 视频加载态（加载完成后隐藏） -->
+    <div id="stageLoading">
+      <div class="ring"></div>
+      <div>正在加载动态视频…</div>
+    </div>
   </div>
 
   <!-- 顶部滚动进度条 -->
@@ -169,33 +286,6 @@
       </clipPath>
     </defs>
   </svg>
-
-  <!-- ============ 着陆页（固定底层，保留） ============ -->
-  <section id="hero" class="section overflow-hidden px-6 sm:px-10">
-    <!-- cream 分隔线（人物站立处开缺口，避免横线穿过人物） -->
-    <div class="absolute inset-x-6 sm:inset-x-10 bottom-[5.5rem] sm:bottom-28 z-10 h-0.5 bg-cream anim-line"
-      style="-webkit-mask-image: linear-gradient(to right, #000 0 30%, transparent 35% 65%, #000 70% 100%); mask-image: linear-gradient(to right, #000 0 30%, transparent 35% 65%, #000 70% 100%);"></div>
-
-    <!-- 左下角大号姓名 -->
-    <img
-      class="pointer-events-none absolute left-1 bottom-[6.5rem] z-10 h-24 w-auto object-contain anim-fade-up sm:left-3 sm:bottom-28 sm:h-44"
-      alt="潘钱呈"
-      src="signature_pqc.webp"
-      style="animation-delay:1300ms; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.35));" />
-
-      <!-- 桌面 footer（已改回） -->
-      <footer class="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between px-6 pb-5 sm:px-10 sm:pb-8 text-xs sm:text-sm leading-relaxed font-hn">
-        <div class="anim-fade-up" style="animation-delay:1400ms">
-          <div>AI 技能探索者，优质内容创作者</div>
-        </div>
-        <div class="text-right anim-fade-up" style="animation-delay:1550ms">
-          <div>上海电力大学 - 26 届信息安全</div>
-        </div>
-      </footer>
-
-    <!-- 向下滚动提示 -->
-    <div class="scroll-hint absolute bottom-6 left-1/2 z-20 -translate-x-1/2 text-cream/60 text-xs tracking-[0.3em] sm:hidden">SCROLL ↓</div>
-  </section>
 
   <!-- ============ 简历整体页（单页，毛玻璃 + 宽弧顶边） ============ -->
   <main id="scroller">
@@ -342,15 +432,6 @@
     </div>
   </main>
 
-  <!-- ============ 着陆页顶部：一排联系方式（其余删除） ============ -->
-  <header class="fixed inset-x-0 top-0 z-30 flex items-center justify-center px-6 pt-6 font-hn text-xs text-cream/90 sm:px-10 sm:pt-8 sm:text-sm">
-    <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pr-10 sm:gap-x-10 sm:pr-0">
-      <a href="tel:17765155467" class="anim-fade-up hover:opacity-60 transition-opacity" style="animation-delay:800ms">微信 / 电话　17765155467</a>
-      <span class="anim-fade-up text-cream/30" style="animation-delay:880ms">·</span>
-      <a href="mailto:3641735786@qq.com" class="anim-fade-up hover:opacity-60 transition-opacity" style="animation-delay:950ms">邮箱　3641735786@qq.com</a>
-    </div>
-  </header>
-
   <!-- 汉堡（移动端） -->
   <button id="hamburger" aria-label="打开菜单" class="fixed right-6 top-6 z-50 flex h-10 w-10 flex-col items-center justify-center gap-1.5 sm:hidden anim-fade-up" style="animation-delay:900ms">
     <span class="bar-top block h-0.5 w-6 bg-cream"></span>
@@ -388,8 +469,66 @@
     </div>
   </aside>
 
-  <!-- 标签掉落堆积交互层 -->
+  <!-- 标签掉落堆积交互层（恢复顶层） -->
   <div id="tagfx"></div>
+
+  <script>
+    // ===== 舞台贴合视频实际显示区 + 自动播放 + 加载态 =====
+    (function () {
+      var video = document.getElementById('heroVideo');
+      var stage = document.getElementById('stage');
+      var loading = document.getElementById('stageLoading');
+
+      function layout() {
+        var vw = video.videoWidth, vh = video.videoHeight;
+        if (!vw || !vh) return;
+        var isMobile = window.matchMedia('(max-width: 767px)').matches;
+        var W = window.innerWidth, H = window.innerHeight;
+        if (!isMobile) {
+          // 电脑版：cover 铺满，舞台=整屏，简历页从整屏底部滚出（原行为，不变）
+          stage.style.left = ''; stage.style.top = '';
+          stage.style.width = ''; stage.style.height = '';
+          document.documentElement.style.setProperty('--sheet-top', H + 'px');
+          return;
+        }
+        // 手机版：contain 完整显示，舞台精确贴合视频实际显示矩形
+        var ar = vw / vh, sW, sH, left, top;
+        if (ar > W / H) { sW = W; sH = W / ar; }      // 视频更宽 → 以宽为准，上下留黑边
+        else { sH = H; sW = H * ar; }                 // 以高为准，左右留黑边
+        left = (W - sW) / 2; top = (H - sH) / 2;
+        stage.style.left = left + 'px';
+        stage.style.top = top + 'px';
+        stage.style.width = sW + 'px';
+        stage.style.height = sH + 'px';
+        // 简历页从「视频底边」向上滚出
+        document.documentElement.style.setProperty('--sheet-top', (top + sH) + 'px');
+        document.documentElement.style.setProperty('--sw', sW + 'px');
+        document.documentElement.style.setProperty('--sh', sH + 'px');
+      }
+
+      ['loadedmetadata', 'resize', 'orientationchange'].forEach(function (e) {
+        window.addEventListener(e, layout);
+      });
+      video.addEventListener('loadedmetadata', layout);
+      layout();
+
+      // 确保静音自动播放（绕过自动播放策略）
+      video.muted = true;
+      var pr = video.play();
+      if (pr && pr.catch) pr.catch(function () {});
+
+      function hideLoad() { if (loading) loading.classList.add('hidden'); }
+      video.addEventListener('playing', hideLoad);
+      video.addEventListener('canplay', function () { /* 等真正播放再隐藏 */ });
+      video.addEventListener('error', function () {
+        if (loading) loading.innerHTML = '<div style="letter-spacing:.2em">视频加载失败，请刷新</div>';
+      });
+
+      window.addEventListener('load', layout);
+      setTimeout(layout, 300);
+      setTimeout(layout, 1000);
+    })();
+  </script>
 
   <script>
     // ===== 标签掉落 + 物理堆积（Matter.js 引擎 + CSS 淡入） =====
