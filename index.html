@@ -160,7 +160,8 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* 手机版：底部信息锚定到「视频底边以下」而不是浏览器底；桌面仍按 md: 值定位 */
-    :root { --sheet-top: 100dvh; }
+    /* CSS 兜底：万一 JS 没算出视频底边，信息组也落在可视区中部偏下（而不是 100dvh 屏幕外） */
+    :root { --sheet-top: 75dvh; }
     @media (max-width: 767px) {
       /* 保持上一次相对间距，整组上移 43px，让视频底边从组中间穿过：上半个压视频、下半个落黑边 */
       .mv-name { top: calc(var(--sheet-top) - 41px) !important; bottom: auto !important; }
@@ -457,8 +458,12 @@
 
       function layout() {
         var vw = video.videoWidth, vh = video.videoHeight;
-        if (!vw || !vh) return;
         var isMobile = window.matchMedia('(max-width: 767px)').matches;
+        // 真机微信里 videoWidth/Height 可能延迟为 0，用已知源尺寸兜底，避免整组被甩到屏外
+        if (!vw || !vh) {
+          if (isMobile) { vw = 1280; vh = 590; }
+          else { vw = 2560; vh = 1180; }
+        }
         var W = window.innerWidth, H = window.innerHeight;
         if (!isMobile) {
           // 电脑版：cover 铺满，舞台=整屏，简历页从整屏底部滚出（原行为，不变）
@@ -482,10 +487,13 @@
         document.documentElement.style.setProperty('--sh', sH + 'px');
       }
 
-      ['loadedmetadata', 'resize', 'orientationchange'].forEach(function (e) {
+      ['loadedmetadata', 'resize', 'orientationchange', 'canplay', 'playing'].forEach(function (e) {
         window.addEventListener(e, layout);
       });
       video.addEventListener('loadedmetadata', layout);
+      video.addEventListener('canplay', layout);
+      video.addEventListener('playing', layout);
+      window.addEventListener('DOMContentLoaded', layout);
       layout();
 
       // 确保静音自动播放（绕过自动播放策略）
