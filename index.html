@@ -767,13 +767,13 @@
 
   <!-- 背景音乐：站点内自托管播放（Hangman's Reel - GHOST OF THE SOUTH，本地 mp3/ogg） -->
   <div id="musicWidget" class="fixed bottom-16 right-3 z-[62] flex flex-col items-end gap-2 md:bottom-10 md:right-6">
-    <div id="musicCard" class="hidden w-60 rounded-xl bg-black/70 px-3 py-3 text-cream shadow-lg backdrop-blur-md">
+    <div id="musicCard" class="hidden absolute right-0 bottom-full mb-2 w-60 rounded-xl bg-black/70 px-3 py-3 text-cream shadow-lg backdrop-blur-md">
       <div class="font-hn text-[11px] leading-tight mb-2">
         <div class="opacity-70">正在听</div>
         <div class="font-semibold">Hangman's Reel</div>
         <div class="opacity-80 text-[10px]">GHOST OF THE SOUTH</div>
       </div>
-      <audio id="bgm" class="w-full" controls preload="none">
+      <audio id="bgm" class="w-full" controls preload="auto">
         <source src="hangmans_reel.mp3" type="audio/mpeg">
         <source src="hangmans_reel.ogg" type="audio/ogg">
         您的浏览器不支持音频播放。
@@ -788,27 +788,73 @@
   </div>
   <script>
     (function () {
-      var b = document.getElementById('musicBtn'), c = document.getElementById('musicCard'), a = document.getElementById('bgm');
+      var b = document.getElementById('musicBtn'),
+          c = document.getElementById('musicCard'),
+          a = document.getElementById('bgm'),
+          w = document.getElementById('musicWidget');
       if (!a) return;
 
-      // 首次用户交互即自动起播（触摸/点击/按下/滚轮均可触发）——浏览器禁止零手势自动播放有声媒体，故用首次手势绕过
-      var started = false, bgmEvts = ['touchstart', 'click', 'pointerdown', 'wheel'];
-      function startBgm() {
-        if (started) return;
-        started = true;
-        a.play().then(function () { if (b) b.classList.add('playing'); }).catch(function () {});
-        bgmEvts.forEach(function (ev) { document.removeEventListener(ev, startBgm); });
-      }
-      bgmEvts.forEach(function (ev) { document.addEventListener(ev, startBgm, { passive: true }); });
+      // 播放状态脉冲：仅由 <audio> 自身事件驱动；卡片显隐不再绑死播放状态，避免互相打架
+      function setPlaying(on) { if (b) b.classList.toggle('playing', !!on); }
+      a.addEventListener('play',  function () { setPlaying(true); });
+      a.addEventListener('pause', function () { setPlaying(false); });
+      a.addEventListener('ended', function () { setPlaying(false); });
 
-      if (b && c) b.addEventListener('click', function () {
-        var show = c.classList.toggle('hidden');
-        if (show) { if (a.paused) a.play().catch(function () {}); }   // 展开卡片 → 确保播放
-        else { a.pause(); if (b) b.classList.remove('playing'); }      // 收起卡片 → 暂停后台播放
+      // 按钮 = 只开/关卡片面板（播放/暂停交给面板内原生音频控件与首次手势自动播放）。
+      // 这样首点按钮一定开卡片、且不会因「音乐已在播」而被误暂停；卡片是绝对浮层，按钮位置永不变。
+      var cardOpen = false;
+      if (b && c) b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        cardOpen = !cardOpen;
+        c.classList.toggle('hidden', !cardOpen);
+        tryUnmute();          // 点按钮也算用户交互：若已 muted 保底播放，则在此解静音出声
       });
 
-      // 拖动整个音乐控件（按钮 + 卡片），松手后停在拖放位置，并限制在视口内
-      var w = document.getElementById('musicWidget');
+      // 首次用户手势自动起播。注意：Chrome 不把 wheel 视为「用户激活手势」，
+      // 所以滚轮触发时无法直接播放有声媒体 → 先用 muted 保底把音频播起来，
+      // 再借随后任意合规激活（点击/松开指针/按键）解除静音出声。点到控件自身则交给按钮处理。
+      var bgmStarted = false;
+      var unmuteHooks = ['click', 'pointerup', 'touchend', 'keydown'];
+      function tryUnmute() {
+        if (!bgmStarted || !a.muted) return;
+        a.muted = false;
+        var p = a.play();
+        if (p && p.then) {
+          p.then(function () {
+            unmuteHooks.forEach(function (ev) { document.removeEventListener(ev, tryUnmute); });
+          }).catch(function () { a.muted = true; });
+        } else {
+          unmuteHooks.forEach(function (ev) { document.removeEventListener(ev, tryUnmute); });
+        }
+      }
+      function autoStart(e) {
+        if (bgmStarted) return;
+        if (e && e.target && e.target.closest && e.target.closest('#musicWidget')) return;
+        bgmStarted = true;
+        var p = a.play();                       // 先用当前手势尝试有声播放（click/pointer/touch 会成功）
+        if (p && p.then) {
+          p.then(function () { /* 有声播放成功，无需解静音 */ })
+           .catch(function () {
+             // 被策略拒绝（典型：wheel 不构成激活）→ 退化为 muted 保底播放，再立即试解静、并挂 hook 兜底
+             a.muted = true;
+             var q = a.play();
+             if (q && q.then) {
+               q.then(function () {
+                 a.muted = false;               // 立即再试解静（部分浏览器在滚轮后窗口期允许）
+                 var r = a.play();
+                 if (r && r.catch) r.catch(function () { a.muted = true; });
+               }).catch(function () {});
+             }
+             unmuteHooks.forEach(function (ev) { document.addEventListener(ev, tryUnmute, { passive: true }); });
+           });
+        }
+      }
+      ['touchstart', 'pointerdown', 'click', 'wheel'].forEach(function (ev) {
+        document.addEventListener(ev, autoStart, { passive: true });
+      });
+
+      // 拖动整个音乐控件（按钮 + 卡片），松手停在拖放位置并限制在视口内。
+      // 关键点：用 document 监听 move/up，且不调用 setPointerCapture，避免抢走按钮的 click。
       if (w) {
         var dragging = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
         w.style.touchAction = 'none';
@@ -818,9 +864,8 @@
           w.style.left = r.left + 'px'; w.style.top = r.top + 'px';
           w.style.right = 'auto'; w.style.bottom = 'auto';
           sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
-          if (w.setPointerCapture) { try { w.setPointerCapture(e.pointerId); } catch (err) {} }
         });
-        w.addEventListener('pointermove', function (e) {
+        document.addEventListener('pointermove', function (e) {
           if (!dragging) return;
           var dx = e.clientX - sx, dy = e.clientY - sy;
           if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
@@ -829,11 +874,8 @@
           ny = Math.max(4, Math.min(ny, window.innerHeight - w.offsetHeight - 4));
           w.style.left = nx + 'px'; w.style.top = ny + 'px';
         });
-        w.addEventListener('pointerup', function (e) {
-          dragging = false;
-          if (w.releasePointerCapture && e.pointerId != null) { try { w.releasePointerCapture(e.pointerId); } catch (err) {} }
-        });
-        // 拖动后拦截本次 click，避免误展开/收起卡片
+        document.addEventListener('pointerup', function () { dragging = false; });
+        // 拖动后拦截本次 click，避免误触按钮；纯点击则放行给按钮切换播放
         w.addEventListener('click', function (e) {
           if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
         }, true);
